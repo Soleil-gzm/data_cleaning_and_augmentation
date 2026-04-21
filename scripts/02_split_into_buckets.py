@@ -18,8 +18,8 @@ from collections import defaultdict
 # 配置
 # INPUT_DIR = "samples"
 # INPUT_DIR = "samples_anonymized"
-INPUT_DIR = "samples"
-OUTPUT_BASE = "bucketed"
+INPUT_DIR = "intermediate/output_cleaning/samples"
+OUTPUT_BASE = "intermediate/output_cleaning/bucketed"
 
 BUCKETS = {
     (0, 0): "bucket_0",
@@ -32,11 +32,7 @@ BUCKETS = {
     (7, 7): "bucket_7",
     (8, 8): "bucket_8",
     (9, 9): "bucket_9",
-    (10, 10): "bucket_10",
-    (11, 11): "bucket_11",
-    (12, 12):"bucket_12",
-    (13, 22): "bucket_13_22",
-    (23, float('inf')): "bucket_23plus",
+    (10, float('inf')): "bucket_10plus",
 }
 
 '''
