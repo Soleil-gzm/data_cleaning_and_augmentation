@@ -83,9 +83,10 @@ bash
 ### 步骤 5：语义增强（生成变体对话）
 bash
     `python scripts/06_augment_dialogues.py --tag <augment_tag> [options]`
-常用选项：
+    
+### 常用选项：
 
-###         参数	                        说明	                            默认值
+            参数	                        说明	                            默认值
         --source_run_id	                指定最终数据的                      run_id	自动取最新
         --tag	                        增强任务标签	                        default
         --num_variants	                每个原始对话生成的变体数	                 3
