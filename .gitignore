@@ -5,3 +5,4 @@ output/
 reports/
 scripts_test/
 intermediate/
+generate_structure.py
