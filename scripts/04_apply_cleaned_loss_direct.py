@@ -155,3 +155,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+'''
+# 自动选择最新清洗结果
+python scripts/04_apply_cleaned_loss_direct.py
+
+# 手动指定 run_id
+python scripts/04_apply_cleaned_loss_direct.py --source_run_id 20260421_163719_clean_default
+'''
