@@ -1,0 +1,7 @@
+data/
+.vscode/
+logs/
+output/
+reports/
+scripts_test/
+intermediate/
