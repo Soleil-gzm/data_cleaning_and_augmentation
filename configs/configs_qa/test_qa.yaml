@@ -1,0 +1,10 @@
+dataset_path: __INPUT_FILE__
+export_path: __OUTPUT_FILE__
+text_keys: text
+np: 16
+skip_op_error: true
+open_tracer: false
+
+process:
+  - whitespace_normalization_mapper:
+      text_keys: 'text'
