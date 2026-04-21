@@ -139,6 +139,7 @@ def enhance_dialogue(original_dialogue, config, rng, logger, dialog_id):
 
 def main():
     parser = argparse.ArgumentParser()
+    ''' 语义增强参数运行: python scripts/05_main_augment_add.py --tag <augment_tag> [options] '''
     parser.add_argument("--source_run_id", type=str, default=None,
                         help="最终训练数据的 run_id (例如 20250421_153022_clean_default_final)")
     parser.add_argument("--tag", type=str, default="default", help="增强任务标签")
