@@ -3,6 +3,11 @@
 对话语义增强脚本（基于清洗后的 JSON）
 读取最终训练数据 JSON，对每个对话中的指定轮次进行多步叠加增强，
 生成多个变体对话，输出新的 JSON/JSONL 文件（保留原始数据及 loss 标记）。
+
+日志机制：
+- 控制台只输出 INFO 及以上级别（任务开始、完成、统计汇总）
+- 详细 DEBUG 信息（每100个对话进度、保存文件路径等）写入日志文件
+- 增强过程中的异常会记录到日志，但不会中断任务
 """
 
 import json
@@ -10,6 +15,7 @@ import argparse
 import random
 import sys
 import os
+import logging
 from copy import deepcopy
 from pathlib import Path
 from datetime import datetime
@@ -18,9 +24,39 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from common import augment_utils_add as aug_utils
 
-# ========== 默认配置 ==========
+# ========== 配置 ==========
 DEFAULT_INPUT_ROOT = "intermediate/output_cleaning/final_training_data"
-OUTPUT_ROOT = "output/augmented_data"
+OUTPUT_ROOT = "output_augmented_data"
+LOG_ROOT = "intermediate/logs_augmentation"          # 日志文件统一存放目录
+
+def setup_logger(log_dir, run_id):
+    """配置日志：文件记录 DEBUG 及以上，控制台只记录 INFO 及以上"""
+    log_dir = Path(log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / f"augment_{run_id}.log"
+
+    logger = logging.getLogger("DialogueAugment")
+    # 避免重复添加 handler
+    if logger.handlers:
+        return logger
+    logger.setLevel(logging.DEBUG)
+
+    # 文件处理器：记录所有级别
+    fh = logging.FileHandler(log_file, encoding='utf-8')
+    fh.setLevel(logging.DEBUG)
+
+    # 控制台处理器：只记录 INFO 及以上
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+    return logger
 
 def get_latest_final_run_id():
     """获取 final_training_data 下最新的 *_final 目录名"""
@@ -48,15 +84,22 @@ def get_enhanceable_indices(messages, target_roles, only_loss_true):
         indices.append(idx)
     return indices
 
-def enhance_dialogue(original_dialogue, config, rng):
-    """生成变体对话列表"""
+def enhance_dialogue(original_dialogue, config, rng, logger, dialog_id):
+    """生成变体对话列表，异常捕获并记录日志"""
     variants = []
     messages = original_dialogue.get("messages", [])
     if not messages:
+        logger.debug(f"对话 {dialog_id} 无 messages，跳过")
         return variants
 
-    enhanceable = get_enhanceable_indices(messages, config["target_roles"], config["only_loss_true"])
+    try:
+        enhanceable = get_enhanceable_indices(messages, config["target_roles"], config["only_loss_true"])
+    except Exception as e:
+        logger.error(f"对话 {dialog_id} 获取可增强索引失败: {e}")
+        return variants
+
     if not enhanceable:
+        logger.debug(f"对话 {dialog_id} 无可增强轮次")
         return variants
 
     num_variants = config["num_variants_per_dialogue"]
@@ -68,26 +111,30 @@ def enhance_dialogue(original_dialogue, config, rng):
     aug_kwargs = config["augment_kwargs"]
 
     for var_id in range(num_variants):
-        new_dialogue = deepcopy(original_dialogue)
-        new_messages = new_dialogue["messages"]
+        try:
+            new_dialogue = deepcopy(original_dialogue)
+            new_messages = new_dialogue["messages"]
 
-        # 随机选择要增强的轮次数
-        k = rng.randint(min_turns, max_turns)
-        if k > len(enhanceable):
-            k = len(enhanceable)
-        selected = rng.sample(enhanceable, k)
+            k = rng.randint(min_turns, max_turns)
+            if k > len(enhanceable):
+                k = len(enhanceable)
+            selected = rng.sample(enhanceable, k)
 
-        for idx in selected:
-            original_text = new_messages[idx].get("content", "")
-            if not original_text:
-                continue
-            variants_list = aug_utils.augment_cell_multi(original_text, **aug_kwargs)
-            if variants_list:
-                new_messages[idx]["content"] = variants_list[0]
-        # 添加元数据
-        new_dialogue["_augmented_from"] = original_dialogue.get("id", None)
-        new_dialogue["_variant_id"] = var_id
-        variants.append(new_dialogue)
+            for idx in selected:
+                original_text = new_messages[idx].get("content", "")
+                if not original_text:
+                    continue
+                variants_list = aug_utils.augment_cell_multi(original_text, **aug_kwargs)
+                if variants_list:
+                    new_messages[idx]["content"] = variants_list[0]
+            # 添加元数据
+            new_dialogue["_augmented_from"] = original_dialogue.get("id", None)
+            new_dialogue["_variant_id"] = var_id
+            variants.append(new_dialogue)
+        except Exception as e:
+            logger.error(f"对话 {dialog_id} 生成变体 {var_id} 失败: {e}", exc_info=True)
+            continue
+
     return variants
 
 def main():
@@ -128,16 +175,28 @@ def main():
         print(f"错误: 输入文件不存在: {input_file}")
         sys.exit(1)
 
-    print(f"加载原始数据: {input_file}")
-    with open(input_file, 'r', encoding='utf-8') as f:
-        original_data = json.load(f)
-    print(f"原始对话数量: {len(original_data)}")
-
     # 输出目录
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_id = f"{timestamp}_augment_{args.tag}"
     output_dir = Path(OUTPUT_ROOT) / run_id
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 配置日志（日志文件统一放在 LOG_ROOT 下）
+    logger = setup_logger(LOG_ROOT, run_id)
+    logger.info("=== 对话语义增强任务开始 ===")
+    logger.info(f"输入文件: {input_file}")
+    logger.info(f"输出目录: {output_dir}")
+    logger.info(f"增强参数: {vars(args)}")
+
+    # 加载原始数据
+    logger.info("加载原始数据...")
+    try:
+        with open(input_file, 'r', encoding='utf-8') as f:
+            original_data = json.load(f)
+    except Exception as e:
+        logger.error(f"加载原始数据失败: {e}")
+        sys.exit(1)
+    logger.info(f"原始对话数量: {len(original_data)}")
 
     # 增强配置
     config = {
@@ -156,23 +215,35 @@ def main():
 
     all_dialogues = []
     total_variants = 0
+    failed_dialogues = []
+
     for idx, dialogue in enumerate(original_data):
         all_dialogues.append(dialogue)  # 保留原始
-        variants = enhance_dialogue(dialogue, config, rng)
-        all_dialogues.extend(variants)
-        total_variants += len(variants)
-        if (idx+1) % 100 == 0:
-            print(f"已处理 {idx+1}/{len(original_data)} 个对话，生成 {total_variants} 个变体")
+        try:
+            variants = enhance_dialogue(dialogue, config, rng, logger, idx)
+            all_dialogues.extend(variants)
+            total_variants += len(variants)
+        except Exception as e:
+            logger.error(f"对话 {idx} 增强过程出现未捕获异常: {e}", exc_info=True)
+            failed_dialogues.append(idx)
+            continue
 
-    print(f"生成完成: 原始 {len(original_data)}，变体 {total_variants}，总计 {len(all_dialogues)}")
+        if (idx + 1) % 100 == 0:
+            logger.debug(f"已处理 {idx+1}/{len(original_data)} 个对话，生成 {total_variants} 个变体")
+
+    logger.info(f"增强完成: 原始 {len(original_data)}，变体 {total_variants}，总计 {len(all_dialogues)}")
+    if failed_dialogues:
+        logger.warning(f"有 {len(failed_dialogues)} 个对话增强失败: {failed_dialogues[:10]}{'...' if len(failed_dialogues)>10 else ''}")
 
     # 保存 JSON
     output_json = output_dir / f"augmented_data_{timestamp}.json"
+    logger.debug(f"保存 JSON 文件: {output_json}")
     with open(output_json, 'w', encoding='utf-8') as f:
         json.dump(all_dialogues, f, ensure_ascii=False, indent=2)
 
     # 保存 JSONL
     output_jsonl = output_dir / f"augmented_data_{timestamp}.jsonl"
+    logger.debug(f"保存 JSONL 文件: {output_jsonl}")
     with open(output_jsonl, 'w', encoding='utf-8') as f:
         for d in all_dialogues:
             f.write(json.dumps(d, ensure_ascii=False) + '\n')
@@ -188,7 +259,8 @@ def main():
         "statistics": {
             "original_dialogues": len(original_data),
             "generated_variants": total_variants,
-            "total_dialogues": len(all_dialogues)
+            "total_dialogues": len(all_dialogues),
+            "failed_dialogues": failed_dialogues
         },
         "output_files": [str(output_json), str(output_jsonl)]
     }
@@ -196,19 +268,12 @@ def main():
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=2)
 
-    print(f"增强数据已保存至: {output_dir}")
-    print(f"  JSON: {output_json}")
-    print(f"  JSONL: {output_jsonl}")
-    print(f"  元数据: {metadata_path}")
+    logger.info(f"增强任务完成，结果保存在: {output_dir}")
+    # 控制台输出简洁信息
+    print(f"\n增强完成！")
+    print(f"  原始对话: {len(original_data)}")
+    print(f"  生成变体: {total_variants}")
+    print(f"  输出目录: {output_dir}")
 
 if __name__ == "__main__":
     main()
-
-
-'''
-# 基本用法（自动找最新 final 数据）
-python scripts/06_augment_dialogues.py --tag v1
-
-# 只增强 loss=True 的 assistant，生成 5 个变体，自适应
-python scripts/06_augment_dialogues.py --only_loss_true --num_variants 5 --adaptive_variants --tag lossOnly_adaptive
-'''

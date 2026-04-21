@@ -7,3 +7,4 @@ scripts_test/
 intermediate/
 generate_structure.py
 scripts/common/__pycache__
+output_augmented_data/
