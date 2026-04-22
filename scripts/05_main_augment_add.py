@@ -79,7 +79,7 @@ def get_enhanceable_indices(messages, target_roles, only_loss_true):
         content = msg.get("content", "")
         if not content.strip():
             continue
-        if only_loss_true and role == "assistant" and msg.get("loss") != True:
+        if only_loss_true and role == "user" and msg.get("loss") != True:
             continue
         indices.append(idx)
     return indices
@@ -115,10 +115,13 @@ def enhance_dialogue(original_dialogue, config, rng, logger, dialog_id):
             new_dialogue = deepcopy(original_dialogue)
             new_messages = new_dialogue["messages"]
 
-            k = rng.randint(min_turns, max_turns)
-            if k > len(enhanceable):
-                k = len(enhanceable)
-            selected = rng.sample(enhanceable, k)
+            # k = rng.randint(min_turns, max_turns)
+            # if k > len(enhanceable):
+            #     k = len(enhanceable)
+            # selected = rng.sample(enhanceable, k)
+
+            # 增强所有可增强的位置
+            selected = enhanceable[:]   # 全部选择
 
             for idx in selected:
                 original_text = new_messages[idx].get("content", "")
@@ -153,10 +156,10 @@ def main():
     parser.add_argument("--num_variants", type=int, default=3, help="每个原始对话生成的变体数量")
     parser.add_argument("--min_turns", type=int, default=1, help="每个变体中最少增强轮次数")
     parser.add_argument("--max_turns", type=int, default=2, help="每个变体中最少增强轮次数")
-    parser.add_argument("--target_roles", type=str, nargs='+', default=["user", "assistant"],
+    parser.add_argument("--target_roles", type=str, nargs='+', default=["user"],
                         help="要增强的角色，可选 user/assistant")
     parser.add_argument("--only_loss_true", action="store_true",
-                        help="是否只增强 loss=True 的 assistant 消息")
+                        help="是否只增强 loss=True 的 user 消息")
     parser.add_argument("--adaptive_variants", action="store_true",
                         help="根据可增强轮次数自动调整变体数量")
     parser.add_argument("--seed", type=int, default=42, help="随机种子")
@@ -216,8 +219,8 @@ def main():
         "adaptive_variants": args.adaptive_variants,
         "augment_kwargs": {
             "num_variants": 1,
-            "min_steps": 1,
-            "max_steps": 3
+            "min_steps": 2,
+            "max_steps": 5
         }
     }
 

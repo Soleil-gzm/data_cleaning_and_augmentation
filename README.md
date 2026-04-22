@@ -1,4 +1,9 @@
-
+# 对话数据清洗与语义增强 
+本项目提供一套完整的数据处理流水线，用于**多轮对话数据**的质量清洗与语义增强。 
+主要分为两个阶段：
+1. **清洗阶段**：基于 [Data-Juicer](https://github.com/modelscope/data-juicer) 对对话样本按轮次分桶，应用不同清洗规则（长度、语言质量等），最终打上 `loss` 标签生成高质量训练数据。
+2. **增强阶段**：利用自定义的 `augment_utils_add` 工具包，对清洗后的对话进行多步叠加语义增强（同义词替换、回译、句式变换等），生成多样性变体，用于扩充训练集。
+整个流程支持**时间戳隔离**、**任务元数据记录**和**断点续传**，便于实验追溯与结果对比。
 
 ## 项目结构（Git 跟踪）
 
@@ -40,7 +45,7 @@
 ### 2. 安装增强依赖（增强阶段）
 
     pip install pandas openpyxl
-     如需回译等高级功能，请安装对应翻译库（如 googletrans, transformers 等）
+    如需回译等高级功能，请安装对应翻译库（如 googletrans, transformers 等）
 
  增强工具包 `augment_utils_add.py` 可能依赖 `resources/` 下的词表文件，请确保路径正确。
 
@@ -55,8 +60,9 @@
 输出：`intermediate/raw_dialogues.json`（所有 assistant 消息初始 loss=True）
 
 ### 步骤 1：拆分对话
-bash
-    `python scripts/01_split_dialogues.py`
+    bash
+    python scripts/01_split_dialogues.py
+
 输出：intermediate/output_cleaning/samples/*.jsonl
 
 ### 步骤 2：按 turn 分桶
@@ -114,7 +120,7 @@ bash
 日志文件：intermediate/logs_augmentation/augment_{run_id}.log
 
 重要路径约定
-所有中间产物均位于 intermediate/ 目录，最终增强结果位于 output/。
+所有中间产物均位于 intermediate/ 目录，最终增强结果位于 output_augmented_data/。
 每个任务（清洗、最终化、增强）都会生成一个 run_id，格式为：
 
 text

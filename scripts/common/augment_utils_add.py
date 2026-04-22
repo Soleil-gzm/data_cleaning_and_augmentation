@@ -70,8 +70,6 @@ else:
 
 # ================= 随机删除增强器 =================
 _random_delete_aug = RandomDeleteChar(create_num=3, change_rate=0.2, seed=42)
-# # ================= 随机实体替换增强器（模拟不同公司/机构名称）=================
-# _random_entity_aug = Randomword(create_num=3, change_rate=0.2, seed=42)
 
 # ================= 独立增强函数（可叠加） =================
 
@@ -216,25 +214,6 @@ def apply_similarword(sentence: str) -> str:
         print(f"同义词替换出错: {e}")
         return sentence
 
-# def apply_word_repetition(sentence: str) -> str:
-#     """
-#     随机重复句子中的一个**词语**（而非整个短句）
-#     规则：选取长度 1~3 的中文字符串作为候选，随机重复一次
-#     """
-#     if not isinstance(sentence, str) or len(sentence.strip()) == 0:
-#         return sentence
-
-#     # 找出所有长度 1~3 的中文词语（连续汉字）
-#     candidates = re.findall(r'[\u4e00-\u9fa5]{1,3}', sentence)
-#     # 过滤掉太常见的单字（可选），保留长度 2~3 的优先，但也允许单字
-#     if not candidates:
-#         return sentence
-
-#     chosen = random.choice(candidates)
-#     # 只替换第一次出现
-#     new_sentence = sentence.replace(chosen, chosen + chosen, 1)
-#     return new_sentence
-
 def apply_word_repetition(sentence: str) -> str:
     """使用 jieba 分词后，随机重复句子中的一个多字词语,（长度≥2），避免与 stutter 功能重叠"""
     if not isinstance(sentence, str) or len(sentence.strip()) == 0:
@@ -253,6 +232,22 @@ def apply_word_repetition(sentence: str) -> str:
     new_sentence = sentence.replace(chosen, chosen + chosen, 1)
     return new_sentence
 
+def apply_short_sentence_tweak(sentence: str) -> str:
+    """对短句（≤4字）进行口语化改写"""
+    if len(sentence) > 4:
+        return sentence
+    # 定义常见短句的映射
+    short_map = {
+        "对哦。": ["对呀。", "对啊。", "嗯对。"],
+        "行。": ["好的。", "可以。", "嗯行。"],
+        "知道了。": ["明白了。", "懂了。", "嗯嗯。"],
+        "嗯。": ["嗯嗯。", "哦。", "好的。"],
+    }
+    if sentence in short_map:
+        return random.choice(short_map[sentence])
+    # 默认加语气词
+    return random.choice(["嗯，", "哦，", "那个，"]) + sentence
+
 # ================= 多步叠加增强函数 =================
 
 # 可用的增强函数列表（可在此处增删或调整顺序）
@@ -266,6 +261,7 @@ AUGMENT_FUNCS = [
     apply_random_entity_replace,
     apply_similarword,
     apply_word_repetition,
+    apply_short_sentence_tweak,
 ]
 
 def multi_step_augment(sentence: str, min_steps=1, max_steps=3) -> str:
@@ -283,23 +279,52 @@ def multi_step_augment(sentence: str, min_steps=1, max_steps=3) -> str:
     for _ in range(steps):
         func = random.choice(AUGMENT_FUNCS)
         result = func(result)
+    # 如果结果未变且句子不空，重试最多2次
+    if result == sentence and len(sentence) > 1:
+        for _ in range(2):
+            new_result = sentence
+            for _ in range(steps):
+                func = random.choice(AUGMENT_FUNCS)
+                new_result = func(new_result)
+            if new_result != sentence:
+                result = new_result
+                break
     return result
 
-def augment_cell_multi(cell_value, num_variants=NUM_VARIANTS, min_steps=1, max_steps=3) -> str:
+def augment_cell_multi(cell_value, num_variants=NUM_VARIANTS, min_steps=1, max_steps=3, return_list=True):
     """
-    处理一个单元格（可能含 '/' 分隔的多条句子），对每条句子生成 num_variants 个变体，
-    每个变体通过多次随机叠加得到。
+    处理一个单元格（可能含 '/' 分隔的多条句子），对每条句子生成 num_variants 个变体。
+    返回格式：
+        - return_list=True（默认）：返回列表，每个元素是一个变体字符串（若原单元格有多条句子，
+          则将每条句子的变体平铺，即 len(result) == num_variants * 句子数）。
+        - return_list=False：保留旧行为，返回 '/' 连接的字符串（不推荐使用）。
+    
+    参数：
+        cell_value: 输入字符串，可能包含 '/' 分隔的多句话
+        num_variants: 每句话生成的变体数量
+        min_steps: 每个变体最少增强步数
+        max_steps: 每个变体最多增强步数
+        return_list: 是否返回列表
     """
     if pd.isna(cell_value):
-        return ""
+        return [] if return_list else ""
+    
     raw_sentences = [s.strip() for s in str(cell_value).split('/') if s.strip()]
     if not raw_sentences:
-        return ""
-    result = []
+        return [] if return_list else ""
+    
+    # 为每个句子生成 num_variants 个变体
+    all_variants = []          # 存储所有变体（平铺）
     for sent in raw_sentences:
-        variants = [multi_step_augment(sent, min_steps, max_steps) for _ in range(num_variants)]
-        result.append("/".join(variants))
-    return "/".join(result)
+        for _ in range(num_variants):
+            variant = multi_step_augment(sent, min_steps, max_steps)
+            all_variants.append(variant)
+    
+    if return_list:
+        return all_variants
+    else:
+        # 旧行为：用 '/' 连接所有变体（不推荐，仅为兼容）
+        return "/".join(all_variants)
 
 # ================= 辅助函数 =================
 def move_column_to_right(df, col_name, new_col_name):
