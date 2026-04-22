@@ -9,26 +9,20 @@ trace_num: 10000
 process:
   - whitespace_normalization_mapper:
   - text_length_filter:
-      min_len: 50
-      max_len: 250
+      min_len: 2
+      max_len: 1000
   - language_id_score_filter:
       lang: zh
-      min_score: 0.90
+      min_score: 0.8
   - document_deduplicator:
       lowercase: true
       ignore_non_character: true
-
-   #使用 MD5 哈希进行精确匹配，只有文本完全相同才视为重复
-  - document_deduplicator:                                  # deduplicate text samples using md5 hashing exact matching method
-      lowercase: true                                        # whether to convert text to lower case
-      ignore_non_character: true                             # whether to ignore non-alphabet characters, including whitespaces, digits, and punctuations
 
   #使用 MinHash 算法识别语义相似的文本
   - document_minhash_deduplicator:                          # deduplicate text samples using MinHash-LSH method
       tokenization: character                                     # tokenization method for text. One of [space, punctuation, character, sentencepiece]
       window_size: 3                                          # window size of shingling
       num_permutations: 64                                   # number of permutations in minhash computing
-    #   jaccard_threshold: 0.6                              # the min jaccard similarity threshold in near-duplicate detection. When the jaccard similarity of two sample texts is >= this threshold, they are regarded as similar samples and this op will only keep one of them after deduplication
       jaccard_threshold: 0.5                              # the min jaccard similarity threshold in near-duplicate detection. When the jaccard similarity of two sample texts is >= this threshold, they are regarded as similar samples and this op will only keep one of them after deduplication
       lowercase: true                                         # whether to convert text to lower case
       num_bands: null                                         # number of bands in LSH. Default it's None, and it will be determined by an optimal params computation algorithm by minimize the weighted sum of probs of False Positives and False Negatives
@@ -42,18 +36,3 @@ process:
       hamming_distance: 3                                    # the max hamming distance to regard 2 samples as similar enough pair. Should be less than num_blocks always
       lowercase: True                                        # whether to convert text to lower case                                    
 
-#     # 过滤包含分期关键词的用户输入
-#   - flagged_words_filter:
-#       lang: zh
-#       max_ratio: 0.00001
-#       flagged_words_dir: ./configs/installment_keywords.txt
-#       use_words_aug: true
-#       text_key: user_input
-      
-#   # 可选：过滤包含分期关键词的助手回复
-#   - flagged_words_filter:
-#       lang: zh
-#       max_ratio: 0.00001
-#       flagged_words_dir: ./configs/installment_keywords.txt
-#       use_words_aug: true
-#       text_key: target_output

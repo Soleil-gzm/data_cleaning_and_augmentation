@@ -37,9 +37,9 @@ REPORT_DIR = "intermediate/output_cleaning/cleaning_reports"
 PLOT_TURNS = None
 
 # BUCKET_CONFIG_MAP = {
-#     "bucket_0": "config_bucket_turn0.yaml",
-#     "bucket_1": "config_bucket_turn1.yaml",
-#     "bucket_2": "config_bucket_turn2.yaml",
+#     "bucket_0": "config_bucket_0.yaml",
+#     "bucket_1": "config_bucket_1.yaml",
+#     "bucket_2": "config_bucket_2.yaml",
 #     "bucket_3": "config_bucket_3.yaml",
 #     "bucket_4": "config_bucket_4.yaml",
 #     "bucket_5": "config_bucket_5.yaml",
@@ -53,7 +53,7 @@ PLOT_TURNS = None
 
 BUCKET_CONFIG_MAP = {
     "bucket_0": "overal_config.yaml",
-    "bucket_1": "overal_config.yaml",
+    "bucket_1": "config_bucket_1.yaml",
     "bucket_2": "overal_config.yaml",
     "bucket_3": "overal_config.yaml",
     "bucket_4": "overal_config.yaml",

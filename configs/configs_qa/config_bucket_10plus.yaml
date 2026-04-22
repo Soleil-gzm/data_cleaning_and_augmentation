@@ -1,7 +1,7 @@
 dataset_path: __INPUT_FILE__
 export_path: __OUTPUT_FILE__
 text_keys: text
-np: 8
+np: 16
 skip_op_error: true
 open_tracer: true
 trace_num: 1000
