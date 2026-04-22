@@ -220,7 +220,7 @@ def main():
         "augment_kwargs": {
             "num_variants": 1,
             "min_steps": 2,
-            "max_steps": 5
+            "max_steps": 3
         }
     }
 
