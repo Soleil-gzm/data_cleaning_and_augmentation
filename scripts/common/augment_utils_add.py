@@ -231,23 +231,6 @@ def apply_word_repetition(sentence: str) -> str:
     # 替换第一次出现的该词语
     new_sentence = sentence.replace(chosen, chosen + chosen, 1)
     return new_sentence
-
-# def apply_short_sentence_tweak(sentence: str) -> str:
-#     """对短句（≤4字）进行口语化改写"""
-#     if len(sentence) > 4:
-#         return sentence
-#     # 定义常见短句的映射
-#     short_map = {
-#         "对哦。": ["对呀。", "对啊。", "嗯对。"],
-#         "行。": ["好的。", "可以。", "嗯行。"],
-#         "知道了。": ["明白了。", "懂了。", "嗯嗯。"],
-#         "嗯。": ["嗯嗯。", "哦。", "好的。"],
-#     }
-#     if sentence in short_map:
-#         return random.choice(short_map[sentence])
-#     # 默认加语气词
-#     return random.choice(["嗯，", "哦，", "那个，"]) + sentence
-
 # ================= 多步叠加增强函数 =================
 
 # 可用的增强函数列表（可在此处增删或调整顺序）
@@ -264,7 +247,6 @@ AUGMENT_FUNCS = [
     apply_reorder,
     apply_word_repetition,
     apply_reorder,
-    # apply_short_sentence_tweak,
 ]
 
 def multi_step_augment(sentence: str, min_steps=1, max_steps=3) -> str:
