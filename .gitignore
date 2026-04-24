@@ -3,7 +3,7 @@ data/
 logs/
 output/
 reports/
-scripts_test/
+
 intermediate/
 generate_structure.py
 scripts/common/__pycache__
