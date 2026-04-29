@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-文本替换脚本
+文本替换脚本（含 loss 字段类型转换）
 将生成的增强数据中的特定词语进行替换：
     1. "洋钱罐平台" -> "华夏银行"
     2. "洋钱罐" -> "华夏"
     3. "平台" -> "银行"
+并将 loss 字段从布尔值转换为字符串 "True"/"False"。
 支持自动获取最新 JSON 文件或手动指定输入文件。
 输出文件保存在同目录下，文件名添加 _replaced 后缀。
 """
@@ -13,24 +14,18 @@ import json
 import os
 import sys
 import argparse
-import glob
 from pathlib import Path
-from datetime import datetime
 
 # ========== 配置 ==========
 DEFAULT_OUTPUT_SUFFIX = "_replaced"
 OUTPUT_BASE = "output_augmented_data"
 
 def find_latest_augmented_json():
-    """
-    在 OUTPUT_BASE 目录下查找最新的 augmented_data_*.json 文件
-    返回: Path 对象或 None
-    """
+    """在 OUTPUT_BASE 目录下查找最新的 augmented_data_*.json 文件"""
     base_dir = Path(OUTPUT_BASE)
     if not base_dir.exists():
         return None
     
-    # 收集所有 augmented_data_*.json 文件
     candidates = []
     for subdir in base_dir.iterdir():
         if not subdir.is_dir():
@@ -55,8 +50,20 @@ def apply_replacements(text):
     text = text.replace("平台", "银行")
     return text
 
+def convert_loss_to_string(messages):
+    """
+    将 messages 中每个消息的 loss 字段从布尔值转换为字符串 "True"/"False"
+    如果 loss 不存在则跳过，如果已经是字符串则不做修改
+    """
+    for msg in messages:
+        if "loss" in msg:
+            loss_val = msg["loss"]
+            if isinstance(loss_val, bool):
+                msg["loss"] = "True" if loss_val else "False"
+    return messages
+
 def process_messages(messages, stats):
-    """处理单个对话中的 messages 列表"""
+    """处理单个对话中的 messages 列表（先替换文本，再转换 loss 类型）"""
     for msg in messages:
         role = msg.get("role")
         content = msg.get("content")
@@ -64,12 +71,10 @@ def process_messages(messages, stats):
             original = content
             new_content = apply_replacements(original)
             if new_content != original:
-                # 统计替换次数（粗略统计，不区分词）
                 stats["total_replacements"] += 1
-                # 可以细化统计每个词的替换次数
                 if "洋钱罐平台" in original:
                     stats["replace_platform_yqg"] += original.count("洋钱罐平台")
-                if "洋钱罐" in original and "洋钱罐平台" not in original:  # 避免重复计数
+                if "洋钱罐" in original and "洋钱罐平台" not in original:
                     stats["replace_yqg"] += original.count("洋钱罐")
                 if "平台" in original:
                     stats["replace_platform"] += original.count("平台")
@@ -77,7 +82,7 @@ def process_messages(messages, stats):
     return messages
 
 def main():
-    parser = argparse.ArgumentParser(description="替换增强数据中的特定词语")
+    parser = argparse.ArgumentParser(description="替换增强数据中的特定词语并转换 loss 类型")
     parser.add_argument("--input", type=str, default=None,
                         help="指定输入的 JSON 文件路径（若未提供则自动查找最新文件）")
     parser.add_argument("--output", type=str, default=None,
@@ -118,7 +123,10 @@ def main():
     for idx, dialogue in enumerate(data):
         messages = dialogue.get("messages", [])
         if messages:
+            # 第一步：文本替换
             process_messages(messages, stats)
+            # 第二步：转换 loss 类型（布尔 -> 字符串）
+            convert_loss_to_string(messages)
         if (idx + 1) % 1000 == 0:
             print(f"已处理 {idx+1} 条对话...")
 
@@ -129,6 +137,17 @@ def main():
     print(f"  '平台' -> '银行' 次数: {stats['replace_platform']}")
     print(f"  总替换操作次数: {stats['total_replacements']}")
 
+    # 可选：统计 loss 转换情况
+    loss_true_count = 0
+    loss_false_count = 0
+    for dialogue in data:
+        for msg in dialogue.get("messages", []):
+            if "loss" in msg and msg["loss"] == "True":
+                loss_true_count += 1
+            elif "loss" in msg and msg["loss"] == "False":
+                loss_false_count += 1
+    print(f"\nLoss 字段转换: True={loss_true_count}, False={loss_false_count}")
+
     if args.dry_run:
         print("\n[干运行] 未写入文件。")
         return
@@ -137,7 +156,7 @@ def main():
     if args.output:
         output_path = Path(args.output)
     else:
-        stem = input_path.stem  # 例如 augmented_data_20260429_102947
+        stem = input_path.stem
         output_path = input_path.parent / f"{stem}{DEFAULT_OUTPUT_SUFFIX}.json"
     
     # 保存结果
