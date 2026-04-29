@@ -131,8 +131,8 @@ def enhance_dialogue(original_dialogue, config, rng, logger, dialog_id):
                 if variants_list:
                     new_messages[idx]["content"] = variants_list[0]
             # 添加元数据
-            new_dialogue["_augmented_from"] = original_dialogue.get("id", None)
-            new_dialogue["_variant_id"] = var_id
+            # new_dialogue["_augmented_from"] = original_dialogue.get("id", None)
+            # new_dialogue["_variant_id"] = var_id
             variants.append(new_dialogue)
         except Exception as e:
             logger.error(f"对话 {dialog_id} 生成变体 {var_id} 失败: {e}", exc_info=True)

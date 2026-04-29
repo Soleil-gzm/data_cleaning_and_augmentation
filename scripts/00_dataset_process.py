@@ -132,7 +132,10 @@ if __name__ == "__main__":
                 prompt = f.read()
 
             # 注入 system 信息
-            dialogs[0]["system"] = "你是一个洋钱罐的催收专员，请根据客户的情况，使用合适的话术与客户进行沟通，争取让客户承诺还款。\n" + prompt
+            # dialogs[0]["system"] = "# 角色\n    你是一位来自华夏银行委外阳光机构的电话专员，现在你需要向以下客户催收信用卡欠款。\n\n## 案例信息\n\n## 标签信息\n\n" + prompt
+            
+            dialogs[0]["system"] = "# 角色\n    你是一位来自华夏银行委外阳光机构的电话专员，现在你需要向以下客户催收信用卡欠款。\n\n## 案例信息\n\n## 标签信息\n\n" 
+
             # 调整键顺序（使 system 在前）
             dialogs[0] = {key: dialogs[0][key] for key in ["system", "input", "output"]}
 

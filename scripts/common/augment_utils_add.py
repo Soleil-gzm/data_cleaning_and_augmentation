@@ -4,7 +4,6 @@ import re
 import pandas as pd
 import jieba
 from nlpcda import Homophone, RandomDeleteChar,Randomword,Similarword
-from llama_cpp import Llama
 
 # 预先加载词典
 jieba.initialize()
@@ -233,77 +232,21 @@ def apply_word_repetition(sentence: str) -> str:
     new_sentence = sentence.replace(chosen, chosen + chosen, 1)
     return new_sentence
 
-'''================= Qwen3-1.7B 模型配置 ================='''
-QWEN_17B_MODEL_PATH = "/home/GUO_Zimeng/coding/data_cleaning_and_augmentation/models/Qwen3-1.7B-GGUF"  # 请修改为实际路径（目录或文件）
-_qwen_model = None
-
-def get_qwen_model():
-    """懒加载模型，只加载一次"""
-    global _qwen_model
-    if _qwen_model is None:
-        # 如果是目录，查找 .gguf 文件
-        if os.path.isdir(QWEN_17B_MODEL_PATH):
-            gguf_files = [f for f in os.listdir(QWEN_17B_MODEL_PATH) if f.endswith('.gguf')]
-            if not gguf_files:
-                raise FileNotFoundError(f"在目录 {QWEN_17B_MODEL_PATH} 下未找到 .gguf 文件")
-            model_file = os.path.join(QWEN_17B_MODEL_PATH, gguf_files[0])
-        else:
-            model_file = QWEN_17B_MODEL_PATH
-        print(f"加载 Qwen3-1.7B 模型: {model_file}")
-        _qwen_model = Llama(
-            model_path=model_file,
-            n_ctx=1024,
-            n_threads=4,
-            verbose=False
-        )
-        print("模型加载完成")
-    return _qwen_model
-
-def apply_qwen_paraphrase(sentence: str, max_tokens=64, temperature=0.4) -> str:
-    """使用 Qwen3-1.7B 模型进行句子改写"""
-    if not isinstance(sentence, str) or len(sentence.strip()) == 0:
-        return sentence
-    
-    llm = get_qwen_model()
-    # 简单有效的提示词（经过测试）
-    prompt = f"改写：{sentence}\n"
-    
-    try:
-        output = llm(
-            prompt,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=0.9,
-            repeat_penalty=1.1,
-            stop=["\n"],
-            echo=False
-        )
-        generated = output['choices'][0]['text'].strip()
-        
-        # 后处理：如果输出为空或包含原句，则返回原句
-        if not generated or len(generated) < 2:
-            return sentence
-        if sentence in generated:
-            generated = generated.split(sentence)[0].strip()
-            if not generated:
-                return sentence
-        
-        # 否定词一致性检测（简单版本）
-        # 原句有“不会不”，生成句不能变成“不会”
-        if "不会不" in sentence and "不会" in generated and "不不会" not in generated:
-            if sentence.count("不") - generated.count("不") >= 1:
-                return sentence
-        
-        # 语义反转检测（针对“不认识”等）
-        if "不认识" in sentence and "认识" in generated and "不" not in generated:
-            return sentence
-        
-        return generated
-    except Exception as e:
-        print(f"Qwen改写失败: {e}")
-        return sentence
-
-
+# def apply_short_sentence_tweak(sentence: str) -> str:
+#     """对短句（≤4字）进行口语化改写"""
+#     if len(sentence) > 4:
+#         return sentence
+#     # 定义常见短句的映射
+#     short_map = {
+#         "对哦。": ["对呀。", "对啊。", "嗯对。"],
+#         "行。": ["好的。", "可以。", "嗯行。"],
+#         "知道了。": ["明白了。", "懂了。", "嗯嗯。"],
+#         "嗯。": ["嗯嗯。", "哦。", "好的。"],
+#     }
+#     if sentence in short_map:
+#         return random.choice(short_map[sentence])
+#     # 默认加语气词
+#     return random.choice(["嗯，", "哦，", "那个，"]) + sentence
 
 # ================= 多步叠加增强函数 =================
 
@@ -321,7 +264,7 @@ AUGMENT_FUNCS = [
     apply_reorder,
     apply_word_repetition,
     apply_reorder,
-    apply_qwen_paraphrase,   # 新增：Qwen 模型改写
+    # apply_short_sentence_tweak,
 ]
 
 def multi_step_augment(sentence: str, min_steps=1, max_steps=3) -> str:
@@ -337,15 +280,7 @@ def multi_step_augment(sentence: str, min_steps=1, max_steps=3) -> str:
     steps = random.randint(min_steps, max_steps)
     result = sentence
     for _ in range(steps):
-        # func = random.choice(AUGMENT_FUNCS)
-
-        # 给模型改写分配较低的权重（例如 5%，其他方法均匀分配其余95%）
-        if random.random() < 0.05:  # 5% 概率使用模型
-            func = apply_qwen_paraphrase
-        else:
-            # 从其他方法中随机选择
-            other_funcs = [f for f in AUGMENT_FUNCS if f != apply_qwen_paraphrase]
-            func = random.choice(other_funcs)
+        func = random.choice(AUGMENT_FUNCS)
         result = func(result)
     # 如果结果未变且句子不空，重试最多2次
     if result == sentence and len(sentence) > 1:
