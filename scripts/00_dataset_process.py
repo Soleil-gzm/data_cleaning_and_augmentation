@@ -3,7 +3,7 @@
 原始对话生成脚本
 从 Yangqg_simulation_data 目录读取 .doc/.docx 对话文件，
 从 cases_random 目录读取对应的 system 信息 .txt 文件，
-生成包含 loss=True 的原始对话 JSON，输出到 intermediate/raw_dialogues.json
+生成包含 loss="True" 的原始对话 JSON，输出到 intermediate/raw_dialogues.json
 """
 
 import json
@@ -95,7 +95,7 @@ def reformat_dialogs(dialogs):
         if "input" in item:
             messages.append({"role": "user", "content": item["input"]})
         if "output" in item:
-            messages.append({"role": "assistant", "content": item["output"], "loss": True})
+            messages.append({"role": "assistant", "content": item["output"], "loss": "True"})
 
     return {"messages": messages}
 

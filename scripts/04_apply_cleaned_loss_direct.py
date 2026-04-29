@@ -68,14 +68,14 @@ def apply_loss_to_original(original_dialogues, kept_turns):
         # 先将所有 assistant 的 loss 设为 False
         for idx, msg in enumerate(messages):
             if msg.get('role') == 'assistant':
-                msg['loss'] = False
+                msg['loss'] = "False"
                 assistant_indices.append(idx)
                 total_assistant += 1
         # 再将保留的 turn 设为 True
         for turn in kept_turns.get(dialog_id, set()):
             if turn < len(assistant_indices):
                 msg_idx = assistant_indices[turn]
-                messages[msg_idx]['loss'] = True
+                messages[msg_idx]['loss'] = "True"
                 total_true += 1
             else:
                 print(f"警告: 对话 {dialog_id} 中 turn {turn} 超出范围 (共 {len(assistant_indices)} 个 assistant)")
