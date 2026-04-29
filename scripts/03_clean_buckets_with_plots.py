@@ -89,53 +89,6 @@ def collect_turn_distribution(file_path):
                 pass
     return dist
 
-# def plot_turn_distribution(bucket_name, input_dist, output_dist, output_dir, selected_turns=None):
-#     if not HAS_MATPLOTLIB:
-#         return
-    
-#     # 强制使用文泉驿正黑字体
-#     import matplotlib.font_manager as fm
-#     # 查找系统中 WenQuanYi Zen Hei 字体的路径
-#     font_path = None
-#     for f in fm.fontManager.ttflist:
-#         if 'WenQuanYi Zen Hei' in f.name:
-#             font_path = f.fname
-#             break
-#     if font_path:
-#         fm.fontManager.addfont(font_path)
-#         plt.rcParams['font.family'] = 'WenQuanYi Zen Hei'
-#     else:
-#         # 回退到系统默认中文字体
-#         plt.rcParams['font.sans-serif'] = ['WenQuanYi Zen Hei', 'SimHei', 'DejaVu Sans']
-    
-#     plt.rcParams['axes.unicode_minus'] = False
-
-#     if not input_dist and not output_dist:
-#         return
-#     if selected_turns is not None:
-#         all_turns = sorted(selected_turns)
-#     else:
-#         all_turns = sorted(set(input_dist.keys()) | set(output_dist.keys()))
-#     if not all_turns:
-#         return
-#     input_counts = [input_dist.get(t, 0) for t in all_turns]
-#     output_counts = [output_dist.get(t, 0) for t in all_turns]
-#     plt.figure(figsize=(12, 6))
-#     x = range(len(all_turns))
-#     width = 0.35
-#     plt.bar(x, input_counts, width, label='清洗前', color='steelblue')
-#     plt.bar([i + width for i in x], output_counts, width, label='清洗后', color='salmon')
-#     plt.xlabel('轮次 (turn)')
-#     plt.ylabel('样本数量')
-#     plt.title(f'{bucket_name} 清洗前后轮次分布对比')
-#     plt.xticks([i + width/2 for i in x], all_turns, rotation=45)
-#     plt.legend()
-#     plt.tight_layout()
-#     plot_path = output_dir / f'{bucket_name}_turn_distribution.png'
-#     plt.savefig(plot_path, dpi=150)
-#     plt.close()
-#     print(f"    图表已保存: {plot_path}")
-
 def plot_turn_distribution(bucket_name, input_dist, output_dist, output_dir, selected_turns=None):
     if not HAS_MATPLOTLIB:
         return
