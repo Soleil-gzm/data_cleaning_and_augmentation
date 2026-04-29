@@ -117,6 +117,24 @@ def main():
     else:
         print(f"从第 {start_idx} 条对话继续处理...")
 
+    # 获取总对话数（快速扫描）
+    print("正在统计总对话数...")
+    with open(INPUT_JSON, 'rb') as f:
+        total_dialogues = sum(1 for _ in ijson.items(f, 'item'))
+    print(f"总对话数: {total_dialogues}")
+
+    # 读取上次进度
+    last_idx = get_last_processed_index(PROGRESS_FILE)
+    start_idx = last_idx + 1
+
+    # 如果进度已无意义（超出总数或文件损坏），自动重置
+    if start_idx >= total_dialogues:
+        print(f"警告: 上次处理索引 {last_idx} 已达或超过总对话数 {total_dialogues}，自动重置进度文件，从头开始处理。")
+        if os.path.exists(PROGRESS_FILE):
+            os.remove(PROGRESS_FILE)   # 直接删除
+        start_idx = 0
+        last_idx = -1
+
     # 检查输入文件是否存在
     if not os.path.exists(INPUT_JSON):
         print(f"错误：输入文件 {INPUT_JSON} 不存在")

@@ -85,7 +85,7 @@ def extract_info(doc_path):
 def reformat_dialogs(dialogs):
     """
     将 dialogs 列表转换为标准的 messages 格式
-    为每个 assistant 消息添加 loss=True
+    为每个 assistant 消息添加 loss="True"
     """
     messages = []
     if "system" in dialogs[0]:
